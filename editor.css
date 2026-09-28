@@ -1,0 +1,441 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  background: #eceff3;
+  overflow: hidden;
+}
+
+/* App Header */
+header.app-header {
+  height: 48px;
+  background: #1f2937;
+  color: white;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+/* Horizontal Toolbar Layout */
+.toolbar {
+  height: 48px;
+  background: white;
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 4px;
+  padding: 0 10px;
+  border-bottom: 1px solid #ddd;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+}
+
+.toolbar::-webkit-scrollbar {
+  height: 4px;
+}
+.toolbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+/* Button UI Components */
+.btn {
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex-shrink: 0;
+  touch-action: manipulation;
+}
+
+.btn:hover { background: #f3f4f6; }
+.btn.primary { background: #2563eb; color: white; border-color: #2563eb; }
+.btn.success { background: #10b981; color: white; border-color: #10b981; }
+.btn.active { background: #2563eb; color: white; border-color: #2563eb; }
+.btn.small { height: 26px; padding: 0 6px; font-size: 11px; }
+
+/* Disabled state for Undo/Redo and inactive tools */
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.divider {
+  width: 1px;
+  height: 24px;
+  background: #e0e0e0;
+  margin: 0 2px;
+  flex-shrink: 0;
+}
+
+/* Search Controls */
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.search-box input {
+  height: 30px;
+  width: 110px;
+  padding: 0 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+#searchCount {
+  font-size: 12px;
+  color: #666;
+  min-width: 32px;
+}
+
+/* Color Picker */
+.color-picker-wrapper {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+#drawColor {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+/* Main Application Layout */
+.workspace {
+  display: flex;
+  height: calc(100vh - 96px);
+}
+
+.sidebar {
+  width: 180px;
+  background: #dfe4ea;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.thumb-card {
+  position: relative;
+  background: white;
+  padding: 5px;
+  border-radius: 6px;
+  box-shadow: 0 2px 5px rgba(0,0,0,.15);
+  text-align: center;
+}
+
+.thumb-card[draggable="true"] { cursor: grab; }
+.thumb-card.drag-over { outline: 2px dashed #2563eb; background-color: #eff6ff; }
+.thumb-card.current { outline: 3px solid #2563eb; }
+.thumb { width: 100%; display: block; cursor: pointer; }
+
+.thumb-actions {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 4px;
+}
+
+.thumb-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.mobile-reorder-controls {
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.reorder-step-btn {
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 5px;
+  font-size: 11px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+/* Document Viewport Canvas */
+.viewer {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 25px;
+  background: #bfc6cf;
+  gap: 20px;
+}
+
+.empty-state {
+  margin-top: 40px;
+  color: #4b5563;
+  font-size: 16px;
+}
+
+.viewer.two-page {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.page-wrap {
+  position: relative;
+  background: white;
+  box-shadow: 0 4px 15px rgba(0,0,0,.2);
+}
+
+canvas { display: block; }
+
+.annotation-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: auto;
+}
+
+/* Search Highlights */
+.text-highlight {
+  position: absolute;
+  background: rgba(255,230,0,0.45);
+  pointer-events: none;
+}
+.text-highlight.active-match { background: rgba(255,140,0,0.6); }
+
+/* Manual Redaction Blocks & Sticky Notes */
+.editable-element {
+  position: absolute;
+  border: 1px dashed #2563eb;
+  cursor: move;
+  box-sizing: border-box;
+}
+
+.whiteout-block {
+  position: absolute;
+  background: #ffffff;
+  border: 1px solid #cccccc;
+  z-index: 5;
+  cursor: pointer;
+}
+
+.sticky-note {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  background: #facc15;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+/* Editable Text Layer Overlay */
+.text-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.editable-pdf-span {
+  position: absolute;
+  pointer-events: auto;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: text;
+  outline: none;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+/* Subtle Hover Outline (Active in Edit Mode) */
+.text-overlay[style*="pointer-events: auto"] .editable-pdf-span:hover:not([contenteditable="true"]) {
+  background-color: rgba(37, 99, 235, 0.12) !important;
+  border: 1px dashed rgba(37, 99, 235, 0.4) !important;
+}
+
+/* Active Inline Editing Focus State */
+.editable-pdf-span[contenteditable="true"] {
+  background-color: #ffffff !important;
+  border: 1px dashed #2563eb !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+  padding: 0 2px;
+  cursor: text;
+}
+
+/* Tooltip Banner */
+.edit-mode-tooltip {
+  position: fixed;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e293b;
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 1000;
+}
+
+.edit-mode-tooltip button {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+/* Added Text Inputs */
+.added-text-input {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+/* Resizable & Draggable Image Container */
+.placed-image-wrapper {
+  position: absolute;
+  z-index: 15;
+  border: 1px dashed #2563eb;
+  cursor: move;
+  box-sizing: border-box;
+  user-select: none;
+}
+
+.placed-image-wrapper img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+}
+
+/* Resize Handle (Bottom-Right Corner) */
+.resize-handle {
+  width: 10px;
+  height: 10px;
+  background: #2563eb;
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  cursor: se-resize;
+  border-radius: 2px;
+}
+
+/* Red Highlight on Object Hover during Delete Mode */
+body.delete-mode .placed-image-wrapper:hover,
+body.delete-mode .whiteout-block:hover,
+body.delete-mode .added-text-input:hover {
+  outline: 2px solid #ef4444 !important;
+  cursor: pointer !important;
+}
+
+/* Responsive UI */
+@media (max-width: 1024px) {
+  .btn-label {
+    display: none;
+  }
+  .sidebar {
+    width: 130px;
+  }
+}
+
+/* SIDEBAR & REORDER PANEL STYLING */
+#sidebar {
+  width: 240px;
+  min-width: 240px;
+  background: #ffffff;
+  border-right: 1px solid #cbd5e1;
+  display: none; /* Keeps it hidden until clicked */
+  flex-direction: column;
+  padding: 12px;
+  overflow-y: auto;
+}
+
+/* Shown when the top toolbar button is active */
+#sidebar.open {
+  display: flex;
+}
+
+/* Active State Styling for Toolbar Buttons */
+.tool-btn.active {
+  background-color: #2563eb !important; /* Bright Blue */
+  color: #ffffff !important;
+  border-color: #1d4ed8 !important;
+}
+
+.tool-btn.active svg {
+  stroke: #ffffff;
+}
+
+.pdf-overlay{
+    position:absolute;
+    inset:0;
+    z-index:20;
+    pointer-events:none;
+}
+
+.ocr-text{
+    position:absolute;
+    pointer-events:auto;
+    z-index:21;
+    user-select:text;
+}
+
+/* Update or paste at the bottom of static/css/editor.css */
+.ocr-recognized-text {
+  position: absolute;
+  color: transparent;
+  user-select: text;
+  white-space: pre;
+  pointer-events: auto !important; /* Ensures mouse clicks reach the text */
+}
+
+.ocr-recognized-text[contenteditable="true"] {
+  color: #000000 !important;
+  background-color: #ffffff !important;
+  border: 1px solid #2563eb !important;
+  outline: none !important;
+  z-index: 1000 !important;
+  cursor: text !important;
+}
+
