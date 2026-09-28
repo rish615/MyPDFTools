@@ -3,4 +3,5 @@ pymupdf
 pypdf
 pdf2docx
 img2pdf
+pytesseract
 gunicorn
