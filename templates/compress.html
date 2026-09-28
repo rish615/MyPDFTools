@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>{{ title if title else 'PDFJantaParty' }}</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo.png') }}">
+
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f7f8fa;
+            color: #222;
+        }
+
+        header {
+            background: white;
+            padding: 20px 50px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #e63946;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 60px auto;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 38px;
+        }
+
+        .description {
+            text-align: center;
+            color: #666;
+            margin-bottom: 35px;
+        }
+
+        .box {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            border: 1px solid #ddd;
+        }
+
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 12px;
+            padding: 45px 20px;
+            text-align: center;
+        }
+
+        input[type="file"] {
+            margin: 20px;
+        }
+
+        .settings {
+            margin-top: 30px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        select,
+        input[type="number"] {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+
+        .custom-size {
+            display: none;
+        }
+
+        button {
+            display: block;
+            margin: 10px auto 0;
+            background: #e63946;
+            color: white;
+            border: none;
+            padding: 15px 35px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #c92f3b;
+        }
+
+        .back {
+            display: block;
+            text-align: center;
+            margin-top: 25px;
+            text-decoration: none;
+            color: #555;
+        }
+
+        .note {
+            font-size: 14px;
+            color: #777;
+            margin-top: 10px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <div class="logo">MyPDFTools</div>
+</header>
+
+<div class="container">
+
+    <h1>Compress PDF</h1>
+
+    <p class="description">
+        Reduce your PDF to a smaller file size.
+    </p>
+
+    <div class="box">
+
+        <form action="/compress" method="POST" enctype="multipart/form-data">
+
+            <div class="upload-area">
+
+                <h2>📄 Select a PDF</h2>
+
+                <p>
+                    Choose the PDF you want to compress.
+                </p>
+
+                <input
+                    type="file"
+                    name="pdf"
+                    accept=".pdf"
+                    required
+                >
+
+            </div>
+
+            <div class="settings">
+
+                <label for="target_size">
+                    Maximum file size
+                </label>
+
+                <select id="target_size" name="target_size" onchange="showCustomSize()">
+
+                    <option value="20">20 KB (Exam Mode)</option>
+                    <option value="50">50 KB</option>
+                    <option value="100">100 KB</option>
+                    <option value="200">200 KB</option>
+                    <option value="500">500 KB</option>
+                    <option value="1024">1 MB</option>
+                    <option value="custom">Custom</option>
+
+                </select>
+
+                <div id="customSize" class="custom-size">
+
+                    <label for="custom_size">
+                        Custom maximum size (KB)
+                    </label>
+
+                    <input
+                        type="number"
+                        id="custom_size"
+                        name="custom_size"
+                        min="10"
+                        placeholder="Example: 75"
+                    >
+
+                </div>
+
+                <p class="note">
+                    The tool will try to reduce your PDF to the selected
+                    maximum size while keeping the best possible quality.
+                </p>
+
+            </div>
+
+            <button type="submit">
+                Compress PDF
+            </button>
+
+        </form>
+
+    </div>
+
+    <a class="back" href="/">
+        ← Back to all PDF tools
+    </a>
+
+</div>
+
+
+<script>
+
+function showCustomSize() {
+
+    const target = document.getElementById("target_size");
+
+    const customBox = document.getElementById("customSize");
+
+    if (target.value === "custom") {
+        customBox.style.display = "block";
+    } else {
+        customBox.style.display = "none";
+    }
+
+}
+
+</script>
+
+<footer style="margin-top: 50px; padding: 20px; text-align: center; font-size: 12px; color: #7f8c8d; border-top: 1px solid #ecf0f1;">
+  <p>© 2026 PDFJantaParty. All rights reserved.</p>
+  <p><em>PDFJantaParty is an independent tool for PDF editing, conversion, and digital signatures. We do not store your private documents, nor are we affiliated with any political entity.</em></p>
+</footer>
+
+</body>
+
+</html>
