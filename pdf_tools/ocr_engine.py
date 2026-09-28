@@ -1,4 +1,6 @@
 import pytesseract
+pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract'
+
 from PIL import Image
 import io
 import os
