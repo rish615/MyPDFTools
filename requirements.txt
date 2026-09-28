@@ -1,5 +1,6 @@
 flask
 pymupdf
+pypdf
 pdf2docx
 img2pdf
 gunicorn
