@@ -1,7 +1,10 @@
-flask
-pymupdf
-pypdf
-pdf2docx
-img2pdf
-pytesseract
+Flask
 gunicorn
+PyMuPDF
+pypdf
+pikepdf
+Pillow
+pytesseract
+pdf2docx
+pdfplumber
+openpyxl
