@@ -1,0 +1,220 @@
+/* ==========================================================================
+   MyPDFTools / PDFJantaParty — shared design system
+   Linked from every page so buttons, headers, cards, and colors match
+   site-wide instead of each tool page having its own random palette.
+   ========================================================================== */
+
+:root {
+  --primary: #e63946;
+  --primary-dark: #c92f3b;
+  --text-dark: #1f2937;
+  --text-muted: #666;
+  --bg-page: #f7f8fa;
+  --bg-card: #ffffff;
+  --border: #e0e0e0;
+  --radius: 10px;
+  --shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+  --shadow-hover: 0 8px 25px rgba(0, 0, 0, 0.10);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg-page);
+  color: var(--text-dark);
+}
+
+a {
+  color: inherit;
+}
+
+/* ---------- Site header (used on every page) ---------- */
+
+.site-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 30px;
+  background: #ffffff;
+  box-shadow: var(--shadow);
+}
+
+.site-header .logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.site-header .logo a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+}
+
+.site-header .logo img {
+  height: 40px;
+  width: auto;
+  object-fit: contain;
+}
+
+.site-header .logo span {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-dark);
+}
+
+.site-header .logo .accent {
+  color: var(--primary);
+}
+
+.site-header nav a {
+  margin-left: 18px;
+  text-decoration: none;
+  color: var(--text-dark);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.site-header nav a:hover {
+  color: var(--primary);
+}
+
+/* ---------- Buttons ---------- */
+
+.btn,
+button.btn-primary,
+input[type="submit"].btn-primary {
+  display: inline-block;
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 13px 28px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: center;
+  transition: background 0.15s ease;
+}
+
+.btn:hover,
+button.btn-primary:hover {
+  background: var(--primary-dark);
+}
+
+.btn-secondary {
+  background: #6b7280;
+}
+
+.btn-secondary:hover {
+  background: #4b5563;
+}
+
+.btn-danger {
+  background: #c0392b;
+}
+
+.btn-danger:hover {
+  background: #992d22;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ---------- Cards / tool tiles ---------- */
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 30px;
+}
+
+.tool {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 30px;
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tool:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-hover);
+}
+
+/* ---------- Forms ---------- */
+
+input[type="text"],
+input[type="password"],
+input[type="file"],
+textarea,
+select {
+  font-family: inherit;
+  font-size: 15px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.upload-area {
+  border: 2px dashed #ccc;
+  border-radius: var(--radius);
+  padding: 40px 20px;
+  text-align: center;
+}
+
+/* ---------- Utility ---------- */
+
+.container {
+  max-width: 800px;
+  margin: 50px auto;
+  padding: 20px;
+}
+
+.page-title {
+  text-align: center;
+  font-size: 36px;
+  margin-bottom: 10px;
+}
+
+.page-description {
+  text-align: center;
+  color: var(--text-muted);
+  margin-bottom: 30px;
+}
+
+.back-link {
+  display: block;
+  text-align: center;
+  margin-top: 20px;
+  text-decoration: none;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.back-link:hover {
+  color: var(--primary);
+}
+
+.note {
+  background: #fff8e1;
+  border: 1px solid #ffe08a;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-top: 20px;
+  font-size: 14px;
+  color: #7a5c00;
+  text-align: left;
+}
