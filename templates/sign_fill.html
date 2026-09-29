@@ -46,11 +46,28 @@
     .form-group label { display: block; font-weight: bold; margin-bottom: 5px; }
     canvas.sig-pad { border: 1px solid #aaa; background: #fff; width: 100%; height: 100px; cursor: crosshair; }
     .btn { width: 100%; padding: 10px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; margin-top: 5px; }
-    .btn-primary { background: #27ae60; color: white; }
+    .btn-primary { background: #e63946; color: white; }
     .btn-secondary { background: #95a5a6; color: white; }
   </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/shared.css') }}">
 </head>
 <body>
+
+<header class="site-header">
+  <div class="logo">
+    <a href="{{ url_for('home') }}">
+      <img src="{{ url_for('static', filename='images/logo.png') }}" alt="PDFJantaParty Logo">
+      <span><span class="accent">PDF</span>JantaParty</span>
+    </a>
+  </div>
+  <nav>
+    <a href="{{ url_for('home') }}">Home</a>
+    <a href="{{ url_for('editor') }}">Editor</a>
+    <a href="{{ url_for('sign_fill_page') }}">Sign &amp; Fill</a>
+  </nav>
+</header>
+
+
 
 <div class="workspace">
   <!-- Left Sidebar Controls -->
