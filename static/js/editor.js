@@ -643,26 +643,49 @@ async function renderEditableTextLayer(pageIdx) {
     const span = document.createElement("span");
     span.className = "editable-pdf-span";
     span.dataset.itemKey = itemKey;
-    span.innerText = editedTextMap.has(itemKey) ? editedTextMap.get(itemKey).newText : item.str;
+    const hasEdit = editedTextMap.has(itemKey);
+    span.innerText = hasEdit ? editedTextMap.get(itemKey).newText : item.str;
+
+    // Stays invisible by default so it doesn't duplicate the text pdf.js
+    // already rendered onto the canvas underneath it - this span exists
+    // purely to catch clicks/typing, not to be seen, unless the text has
+    // actually been edited (then it's shown highlighted, same as OCR's
+    // edited-line indicator) or is being actively typed into right now.
+    const baseColor = hasEdit ? "#000" : "transparent";
+    const baseBackground = hasEdit ? "#ffff80" : "transparent";
 
     span.style.cssText = `
       position: absolute; left: ${box.left}px; top: ${box.top}px;
       width: ${box.width}px; height: ${box.height}px; font-size: ${box.height}px;
-      font-family: Arial, sans-serif; line-height: 1; color: #000; outline: none;
+      font-family: Arial, sans-serif; line-height: 1; color: ${baseColor};
+      background-color: ${baseBackground}; outline: none;
     `;
 
     span.ondblclick = (e) => {
       if (!isEditTextMode) return;
       e.stopPropagation();
       span.contentEditable = true;
+      span.style.color = "#000";
+      span.style.backgroundColor = "#ffffff";
+      span.style.outline = "2px solid #2563eb";
       span.focus();
     };
 
     span.onblur = () => {
       if (span.contentEditable !== "true") return;
       span.contentEditable = false;
+      span.style.outline = "none";
       const updatedText = span.innerText.trim();
-      editedTextMap.set(itemKey, { originalItem: item, box, newText: updatedText, fontSize: box.height, color: activeColor, pageIndex: pageIdx });
+
+      if (updatedText !== item.str.trim()) {
+        span.style.color = "#000";
+        span.style.backgroundColor = "#ffff80";
+        editedTextMap.set(itemKey, { originalItem: item, box, newText: updatedText, fontSize: box.height, color: activeColor, pageIndex: pageIdx });
+      } else {
+        span.style.color = "transparent";
+        span.style.backgroundColor = "transparent";
+        editedTextMap.delete(itemKey);
+      }
     };
 
     overlay.appendChild(span);
