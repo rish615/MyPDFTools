@@ -177,25 +177,40 @@ if (ocrToolBtn) {
 
     ocrToolBtn.disabled = true;
     let totalLines = 0;
+    let textPages = 0;
+    let ocrPages = 0;
 
     try {
-      // Run OCR across every page, not just the currently active one.
+      // Works across every page, not just the currently active one.
       for (let i = 0; i < pdfDoc.numPages; i++) {
         const canvas = pageWraps[i]?.canvas;
         if (!canvas) continue;
 
         ocrToolBtn.innerText = `Processing ${i + 1}/${pdfDoc.numPages}...`;
 
-        // Correct endpoint: /api/ocr (this used to point at /run-ocr, which does
-        // not exist in app.py, so OCR always silently failed).
-        const ocrLines = await runOCRForPage(canvas);
+        // Typed PDFs already contain their text, so read it directly: it is
+        // instant and gives exact positions and font sizes. Only pages with
+        // no real text (scans/photos) go through the slower OCR server.
+        let pageLines = await getRealTextLines(i);
+        if (pageLines.length >= 3) {
+          textPages++;
+        } else {
+          pageLines = await runOCRForPage(canvas);
+          ocrPages++;
+        }
 
         // Draws editable, double-click-to-edit spans over this page.
-        renderOCRLayer(ocrLines, i);
-        totalLines += ocrLines.length;
+        renderOCRLayer(pageLines, i);
+        totalLines += pageLines.length;
       }
 
-      showOCRToast(`${totalLines} editable lines detected across ${pdfDoc.numPages} page(s). Double-click any line to edit.`);
+      const source =
+        ocrPages === 0
+          ? "read directly from the PDF's text"
+          : textPages === 0
+            ? "found with OCR"
+            : `${textPages} page(s) read from the PDF's text, ${ocrPages} with OCR`;
+      showOCRToast(`${totalLines} editable lines ${source}. Double-click any line to edit.`);
     } catch (err) {
       console.error("OCR execution error:", err);
       showOCRToast(`OCR Failed: ${err.message}`, true);
@@ -1001,15 +1016,41 @@ export function renderOCRLayer(lines, pageIndex) {
     const width = line.bbox.width * scaleX;
     const height = line.bbox.height * scaleY;
 
+    // Font size: exact when read from the PDF's own text; for OCR it is
+    // estimated from the MEDIAN word height (so one misread symbol can't
+    // inflate the whole line), falling back to the old box-height guess.
+    let fontPx;
+    if (typeof line.fontSize === "number") fontPx = line.fontSize * scaleY;
+    else if (typeof line.font_height === "number") fontPx = Math.max(8, (line.font_height * scaleY) / 0.78);
+    else fontPx = Math.max(10, height * 0.75);
+
+    const rawFamily = String(line.family || "");
+    const familyKey = /mono|courier/i.test(rawFamily)
+      ? "mono"
+      : /serif/i.test(rawFamily) && !/sans/i.test(rawFamily)
+        ? "serif"
+        : "sans";
+    const cssFamily = {
+      sans: "Arial, sans-serif",
+      serif: "'Times New Roman', Times, serif",
+      mono: "'Courier New', monospace",
+    }[familyKey];
+
+    // These travel with the span so Save can reproduce the same size/baseline.
+    span.dataset.edited = "false";
+    span.dataset.fontPx = String(fontPx);
+    span.dataset.family = familyKey;
+    if (typeof line.baseline === "number") span.dataset.baselinePx = String(line.baseline * scaleY);
+
     span.style.cssText = `
       position: absolute;
       left: ${left}px;
       top: ${top}px;
       width: ${width}px;
       height: ${height}px;
-      font-size: ${Math.max(10, height * 0.75)}px;
-      font-family: Arial, sans-serif;
-      line-height: 1;
+      font-size: ${fontPx}px;
+      font-family: ${cssFamily};
+      line-height: ${typeof line.fontSize === "number" ? height + "px" : "1"};
       color: transparent;
       background-color: transparent;
       outline: none;
@@ -1023,15 +1064,19 @@ export function renderOCRLayer(lines, pageIndex) {
     `;
 
     // Hover state
+    // Hover only touches lines that have NOT been edited. Before, hovering an
+    // edited (yellow) line replaced its yellow with the hover tint, and
+    // moving the mouse away reset it to transparent - so Save then treated it
+    // as unedited and silently dropped the change from the PDF.
     span.addEventListener("mouseenter", () => {
-      if (span.contentEditable !== "true") {
+      if (span.contentEditable !== "true" && span.dataset.edited !== "true") {
         span.style.backgroundColor = "rgba(37, 99, 235, 0.15)";
         span.style.outline = "1px dashed #2563eb";
       }
     });
 
     span.addEventListener("mouseleave", () => {
-      if (span.contentEditable !== "true" && span.style.backgroundColor !== "rgb(255, 255, 128)") {
+      if (span.contentEditable !== "true" && span.dataset.edited !== "true") {
         span.style.backgroundColor = "transparent";
         span.style.outline = "none";
       }
@@ -1046,6 +1091,10 @@ export function renderOCRLayer(lines, pageIndex) {
       span.style.backgroundColor = "#ffffff";
       span.style.outline = "2px solid #2563eb";
       span.style.zIndex = "1000";
+      // Let the box grow while typing so longer text isn't clipped.
+      span.style.minWidth = width + "px";
+      span.style.width = "auto";
+      span.style.overflow = "visible";
       span.focus();
     });
 
@@ -1053,14 +1102,20 @@ export function renderOCRLayer(lines, pageIndex) {
     span.addEventListener("blur", () => {
       span.contentEditable = "false";
       span.style.zIndex = "100";
-      if (span.innerText.trim() !== line.text) {
+      const normalize = (t) => t.replace(/\s+/g, " ").trim();
+      if (normalize(span.innerText) !== normalize(line.text)) {
+        span.dataset.edited = "true";
         span.style.color = "#000000";
         span.style.backgroundColor = "#ffff80";
         span.style.outline = "1px solid #d97706";
       } else {
+        span.dataset.edited = "false";
         span.style.color = "transparent";
         span.style.backgroundColor = "transparent";
         span.style.outline = "none";
+        span.style.width = width + "px";
+        span.style.minWidth = "";
+        span.style.overflow = "hidden";
       }
     });
 
@@ -1119,6 +1174,122 @@ function computeItemBox(item, viewport) {
   const width = item.width * Math.hypot(viewport.transform[0], viewport.transform[1]);
   return { left: tx[4], top: tx[5] - height, width, height };
 }
+
+// BEGIN real-text-lines
+// For PDFs that already contain typed text, read the text's real positions,
+// font sizes and baselines straight from the file instead of guessing from
+// pixels with OCR. Gives exact placement, instant results, and no misreads.
+function makeTextMeasurer() {
+  const ctx = document.createElement("canvas").getContext("2d");
+  ctx.font = "100px Arial, Helvetica, sans-serif";
+  return (str) => ctx.measureText(str).width;
+}
+
+function buildLinesFromTextContent(textContent, viewport, measure) {
+  const vt = viewport.transform;
+  const xScale = Math.hypot(vt[0], vt[1]);
+  const fragments = [];
+
+  textContent.items.forEach((item) => {
+    const str = item.str;
+    if (!str || !str.trim()) return;
+
+    const tx = pdfjsLib.Util.transform(vt, item.transform);
+    // Only upright text is handled; rotated text is left alone.
+    if (Math.abs(tx[1]) > 0.1 * Math.abs(tx[0])) return;
+
+    const fontSize = Math.hypot(tx[2], tx[3]);
+    const totalWidth = item.width * xScale;
+    if (!(fontSize > 0) || !(totalWidth > 0)) return;
+
+    const style = textContent.styles && textContent.styles[item.fontName];
+    const family = (style && style.fontFamily) || "sans-serif";
+    const fullMeasure = measure(str) || 1;
+
+    // Split on runs of 3+ spaces: forms often line a label up with its value
+    // using a run of spaces, and each side should be editable on its own.
+    for (const m of str.matchAll(/\S+(?:[ \u00a0]{1,2}\S+)*/g)) {
+      const startFrac = measure(str.slice(0, m.index)) / fullMeasure;
+      const endFrac = measure(str.slice(0, m.index + m[0].length)) / fullMeasure;
+      fragments.push({
+        text: m[0].replace(/[\s\u00a0]+/g, " "),
+        left: tx[4] + startFrac * totalWidth,
+        right: tx[4] + endFrac * totalWidth,
+        baseline: tx[5],
+        fontSize,
+        family,
+      });
+    }
+  });
+
+  // Some PDFs draw text twice to fake bold - keep just one copy.
+  const unique = [];
+  fragments.forEach((f) => {
+    const dup = unique.find(
+      (u) => u.text === f.text && Math.abs(u.left - f.left) < 2 && Math.abs(u.baseline - f.baseline) < 2
+    );
+    if (!dup) unique.push(f);
+  });
+
+  // Group into rows by baseline.
+  unique.sort((a, b) => a.baseline - b.baseline || a.left - b.left);
+  const rows = [];
+  unique.forEach((f) => {
+    const row = rows.find((r) => Math.abs(r.baseline - f.baseline) <= 0.3 * Math.max(r.fontSize, f.fontSize));
+    if (row) row.items.push(f);
+    else rows.push({ baseline: f.baseline, fontSize: f.fontSize, items: [f] });
+  });
+
+  // Within a row, join fragments separated by a normal word gap, but start a
+  // new editable line wherever there is a big gap (e.g. label | value).
+  const lines = [];
+  rows.forEach((row) => {
+    row.items.sort((a, b) => a.left - b.left);
+    let seg = null;
+    const flush = () => {
+      if (!seg) return;
+      const fs = seg.fontSize;
+      lines.push({
+        text: seg.text,
+        fontSize: fs,
+        baseline: seg.baseline,
+        family: seg.family,
+        bbox: {
+          x0: seg.left,
+          y0: seg.baseline - 0.95 * fs,
+          x1: seg.right,
+          y1: seg.baseline + 0.28 * fs,
+          width: seg.right - seg.left,
+          height: 1.23 * fs,
+        },
+      });
+      seg = null;
+    };
+    row.items.forEach((f) => {
+      if (seg && f.left - seg.right <= Math.max(seg.fontSize, f.fontSize)) {
+        const gap = f.left - seg.right;
+        seg.text += (gap > 0.15 * seg.fontSize ? " " : "") + f.text;
+        seg.right = Math.max(seg.right, f.right);
+        seg.fontSize = Math.max(seg.fontSize, f.fontSize);
+      } else {
+        flush();
+        seg = { ...f };
+      }
+    });
+    flush();
+  });
+
+  lines.sort((a, b) => a.bbox.y0 - b.bbox.y0 || a.bbox.x0 - b.bbox.x0);
+  return lines;
+}
+
+async function getRealTextLines(pageIndex) {
+  const pw = pageWraps[pageIndex];
+  if (!pw || !pw.viewport) return [];
+  const textContent = await getPageTextContent(pageIndex);
+  return buildLinesFromTextContent(textContent, pw.viewport, makeTextMeasurer());
+}
+// END real-text-lines
 
 fitPageBtn.onclick = async () => {
   if (!pdfDoc) return;
@@ -1187,6 +1358,26 @@ if (savePdfBtn) {
       const { PDFDocument, rgb, StandardFonts } = PDFLib;
       const pdfDocLib = await PDFDocument.load(rawPdfBytes.slice(0));
       const font = await pdfDocLib.embedFont(StandardFonts.Helvetica);
+      const fontSerif = await pdfDocLib.embedFont(StandardFonts.TimesRoman);
+      const fontMono = await pdfDocLib.embedFont(StandardFonts.Courier);
+      let replacedChars = false;
+
+      // The built-in PDF fonts can only draw Latin characters. One unsupported
+      // character (e.g. Hindi) used to make drawText throw and the whole save
+      // fail, so unsupported characters become "?" and the user is told.
+      const safeText = (useFont, text) => {
+        return Array.from(text)
+          .map((ch) => {
+            try {
+              useFont.encodeText(ch);
+              return ch;
+            } catch (e) {
+              replacedChars = true;
+              return "?";
+            }
+          })
+          .join("");
+      };
 
       const pages = pdfDocLib.getPages();
       const pngEmbedPromises = [];
@@ -1215,8 +1406,9 @@ if (savePdfBtn) {
         editedSpans.forEach((span) => {
           const text = span.innerText;
 
-          // Only draw spans that have visible/edited text content
-          if (text && span.style.backgroundColor !== "transparent") {
+          // Only draw lines that were actually edited. This reads the explicit
+          // edited flag (not the background colour, which hover could reset).
+          if (text && span.dataset.edited === "true") {
             const rect = span.getBoundingClientRect();
 
             const pdfX = (rect.left - canvasRect.left) * scaleX;
@@ -1225,39 +1417,45 @@ if (savePdfBtn) {
             const boxHeightPdf = rect.height * scaleY;
             const boxWidthPdf = rect.width * scaleX;
 
-            // Derive font size from the font's own metrics instead of a
-            // guessed ratio, so it actually matches the detected box height.
-            const unitHeight = font.heightAtSize(1);
-            const fontSize = Math.max(6, boxHeightPdf / unitHeight);
+            // Use the exact font size and baseline recorded when the line was
+            // created (real PDF text or the OCR estimate). Only fall back to
+            // guessing from the box if they're somehow missing.
+            const fontPx = parseFloat(span.dataset.fontPx);
+            const fontSize = fontPx > 0 ? fontPx * scaleY : Math.max(6, boxHeightPdf / font.heightAtSize(1));
 
-            // Baseline sits a bit above the box's bottom edge to leave room
-            // for descenders (roughly 20% of the font size), scaling with
-            // text size instead of a flat pixel offset.
-            const baselineY = pdfY + fontSize * 0.2;
+            const baselinePx = parseFloat(span.dataset.baselinePx);
+            const baselineY = baselinePx > 0 ? height - baselinePx * scaleY : pdfY + fontSize * 0.2;
 
-            pending.push({ text, pdfX, pdfY, boxWidthPdf, boxHeightPdf, fontSize, baselineY });
+            pending.push({
+              text, pdfX, pdfY, boxWidthPdf, boxHeightPdf, fontSize, baselineY,
+              fontKey: span.dataset.family || "sans",
+            });
           }
         });
 
         // Pass 1: cover every original word first.
+        // A small margin around each box so no sliver of the old text peeks out.
         pending.forEach(({ pdfX, pdfY, boxWidthPdf, boxHeightPdf }) => {
+          const padX = 2 * scaleX;
+          const padY = 1.5 * scaleY;
           page.drawRectangle({
-            x: pdfX,
-            y: pdfY,
-            width: boxWidthPdf,
-            height: boxHeightPdf,
+            x: pdfX - padX,
+            y: pdfY - padY,
+            width: boxWidthPdf + 2 * padX,
+            height: boxHeightPdf + 2 * padY,
             color: rgb(1, 1, 1), // White
           });
         });
 
         // Pass 2: now draw every edited word on top, safe from being
         // covered by a later rectangle.
-        pending.forEach(({ text, pdfX, fontSize, baselineY }) => {
-          page.drawText(text, {
+        pending.forEach(({ text, pdfX, fontSize, baselineY, fontKey }) => {
+          const useFont = { serif: fontSerif, mono: fontMono }[fontKey] || font;
+          page.drawText(safeText(useFont, text), {
             x: pdfX,
             y: baselineY,
             size: fontSize,
-            font: font,
+            font: useFont,
             color: rgb(0, 0, 0), // Black
           });
         });
@@ -1289,7 +1487,7 @@ if (savePdfBtn) {
           const pdfY = height - ((rect.top - canvasRect.top + rect.height) * scaleY);
           const fontSizePx = parseFloat(input.style.fontSize) || 16;
           const fontSizePdf = fontSizePx * scaleY;
-          page.drawText(text, {
+          page.drawText(safeText(font, text), {
             x: pdfX,
             y: pdfY + fontSizePdf * 0.2,
             size: fontSizePdf,
@@ -1321,7 +1519,7 @@ if (savePdfBtn) {
             });
 
             const noteFontSize = Math.max(6, 11 * scaleY);
-            page.drawText(note.text, {
+            page.drawText(safeText(font, note.text), {
               x: pdfX + 4,
               y: pdfY + boxHeightPdf - noteFontSize,
               size: noteFontSize,
@@ -1353,7 +1551,7 @@ if (savePdfBtn) {
             color: rgb(1, 1, 1),
           });
 
-          page.drawText(newText, {
+          page.drawText(safeText(font, newText), {
             x: pdfX,
             y: pdfY + boxHeightPdf * 0.2,
             size: (fontSize || box.height) * scaleY,
@@ -1386,7 +1584,11 @@ if (savePdfBtn) {
       downloadLink.download = "Edited_Document.pdf";
       downloadLink.click();
 
-      alert("PDF exported successfully!");
+      alert(
+        replacedChars
+          ? "PDF exported. Note: some characters (for example Hindi letters) can't be drawn with the built-in PDF fonts, so they were replaced with '?'."
+          : "PDF exported successfully!"
+      );
     } catch (err) {
       console.error("Save Error:", err);
       alert("Failed to export modified PDF.");
