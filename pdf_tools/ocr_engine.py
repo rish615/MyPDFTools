@@ -21,6 +21,23 @@ if os.name == "nt":
 # for OCR accuracy while capping the worst case.
 MAX_OCR_DIMENSION = 2000
 
+# A gap between two words wider than this many text-heights starts a new
+# editable line (see the splitting step in process_image_ocr).
+SPLIT_GAP_FACTOR = 2.0
+
+
+def _median(values):
+    ordered = sorted(values)
+    mid = len(ordered) // 2
+    if len(ordered) % 2:
+        return ordered[mid]
+    return (ordered[mid - 1] + ordered[mid]) / 2
+
+
+def _percentile(values, fraction):
+    ordered = sorted(values)
+    return ordered[min(len(ordered) - 1, int(len(ordered) * fraction))]
+
 
 def process_image_ocr(image_bytes, lang='eng'):
     """
@@ -61,7 +78,7 @@ def process_image_ocr(image_bytes, lang='eng'):
         ocr_image, lang=lang, config=custom_config, output_type=pytesseract.Output.DICT
     )
 
-    lines = {}
+    words_by_line = {}
     n_boxes = len(data['text'])
 
     for i in range(n_boxes):
@@ -76,42 +93,66 @@ def process_image_ocr(image_bytes, lang='eng'):
 
         # 3. Filter out empty strings and low-confidence garbage text
         if text and conf > 40:
-            line_id = f"{data['block_num'][i]}_{data['par_num'][i]}_{data['line_num'][i]}"
-
-            if line_id not in lines:
-                lines[line_id] = {
-                    'text_parts': [],
-                    'x0': data['left'][i],
-                    'y0': data['top'][i],
-                    'x1': data['left'][i] + data['width'][i],
-                    'y1': data['top'][i] + data['height'][i]
-                }
-
-            # 4. Expand line bounding box
-            line = lines[line_id]
-            line['text_parts'].append(text)
-            line['x0'] = min(line['x0'], data['left'][i])
-            line['y0'] = min(line['y0'], data['top'][i])
-            line['x1'] = max(line['x1'], data['left'][i] + data['width'][i])
-            line['y1'] = max(line['y1'], data['top'][i] + data['height'][i])
+            line_id = (data['block_num'][i], data['par_num'][i], data['line_num'][i])
+            words_by_line.setdefault(line_id, []).append({
+                'text': text,
+                'left': data['left'][i],
+                'top': data['top'][i],
+                'width': data['width'][i],
+                'height': data['height'][i],
+            })
 
     # Scale bounding boxes back up to original-image coordinates if we
     # downscaled for OCR.
     inverse_scale = 1.0 / scale_factor if scale_factor != 1.0 else 1.0
 
     grouped_lines = []
-    for line in lines.values():
-        grouped_lines.append({
-            'text': " ".join(line['text_parts']),
-            'bbox': {
-                'x0': line['x0'] * inverse_scale,
-                'y0': line['y0'] * inverse_scale,
-                'x1': line['x1'] * inverse_scale,
-                'y1': line['y1'] * inverse_scale,
-                'width': (line['x1'] - line['x0']) * inverse_scale,
-                'height': (line['y1'] - line['y0']) * inverse_scale
-            }
-        })
+    for words in words_by_line.values():
+        words.sort(key=lambda w: w['left'])
+
+        # Every segment on this row shares one font size and baseline.
+        # The MEDIAN word height is used instead of the whole box so one
+        # misread symbol (like a stray "cent" sign) can't blow a line up to
+        # double size. Words without descenders sit exactly on the baseline,
+        # so a low percentile of the word bottoms finds it (tested accurate
+        # to within a few pixels).
+        font_height = _median([w['height'] for w in words]) * inverse_scale
+        baseline = _percentile([w['top'] + w['height'] for w in words], 0.30) * inverse_scale
+
+        # 4. Split the row wherever there is a big gap between words (e.g. a
+        # form's "label      :  value"), so each side stays its own editable
+        # line in its own place instead of one wide box that squashes the gap.
+        # A normal word space is well under half the text height; a column
+        # gap is several times the text height.
+        line_median = _median([w['height'] for w in words])
+        segments, current = [], [words[0]]
+        for prev, word in zip(words, words[1:]):
+            gap = word['left'] - (prev['left'] + prev['width'])
+            if gap > SPLIT_GAP_FACTOR * line_median:
+                segments.append(current)
+                current = [word]
+            else:
+                current.append(word)
+        segments.append(current)
+
+        for seg in segments:
+            x0 = min(w['left'] for w in seg)
+            y0 = min(w['top'] for w in seg)
+            x1 = max(w['left'] + w['width'] for w in seg)
+            y1 = max(w['top'] + w['height'] for w in seg)
+            grouped_lines.append({
+                'text': " ".join(w['text'] for w in seg),
+                'font_height': font_height,
+                'baseline': baseline,
+                'bbox': {
+                    'x0': x0 * inverse_scale,
+                    'y0': y0 * inverse_scale,
+                    'x1': x1 * inverse_scale,
+                    'y1': y1 * inverse_scale,
+                    'width': (x1 - x0) * inverse_scale,
+                    'height': (y1 - y0) * inverse_scale
+                }
+            })
 
     # 5. Sort top-to-bottom, left-to-right
     grouped_lines.sort(key=lambda item: (item['bbox']['y0'], item['bbox']['x0']))
