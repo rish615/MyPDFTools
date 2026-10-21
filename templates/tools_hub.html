@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ seo.title }}</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo.png') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/shared.css') }}">
+  {% include '_seo_head.html' %}
+</head>
+<body>
+
+{% include '_site_header.html' %}
+
+<main class="hub">
+  <h1>All PDF Tools</h1>
+  <p class="hub-intro">Every tool is free and needs no account. Pick one to get started.</p>
+
+  {% for category in categories %}
+  <section class="hub-cat" id="{{ category.key }}">
+    <h2>{{ category.name }}</h2>
+    <p>{{ category.blurb }}</p>
+    <div class="hub-grid">
+      {% for t in category.tools %}
+      <a class="tc-card" href="{{ t.url }}">
+        <span class="tc-icon">{{ t.icon }}</span>
+        <strong>{{ t.name }}</strong>
+        <small>{{ t.short }}</small>
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+</main>
+
+{% include '_site_footer.html' %}
+
+</body>
+</html>
