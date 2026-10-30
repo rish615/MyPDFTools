@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ seo.title }}</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo.png') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/shared.css') }}">
+  {% include '_seo_head.html' %}
+</head>
+<body>
+
+{% include '_site_header.html' %}
+
+<section class="lp-hero">
+  <h1>{{ tool.h1 }}</h1>
+  <p>{{ tool.tagline }}</p>
+  <a class="btn" href="{{ tool.cta.href }}">{{ tool.cta.label }}</a>
+  <p class="lp-note">{{ tool.cta.note }}</p>
+</section>
+
+{% include '_tool_content.html' %}
+
+{% include '_site_footer.html' %}
+
+</body>
+</html>
