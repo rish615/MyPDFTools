@@ -1318,7 +1318,11 @@ def sitemap():
 
 @app.route("/robots.txt")
 def robots():
-    body = "User-agent: *\nAllow: /\n\nSitemap: https://pdfjantaparty.onrender.com/sitemap.xml"
+    body = f"""User-agent: *
+Allow: /
+Disallow: /api/
+
+Sitemap: {tools_data.SITE_URL}/sitemap.xml"""
     return Response(body, mimetype="text/plain")
 
 
